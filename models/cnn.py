@@ -1,4 +1,4 @@
-from torch import functional
+from torch.nn import functional
 from torch import nn
 
 
@@ -95,10 +95,28 @@ class LinearHead(nn.Module):
 
         self.conv_layer = nn.Conv2d(in_channels, out_channels, 1, bias=False)
         self.bn = nn.BatchNorm2d(out_channels)
-        self.linear = nn.Linear(64, final_out, bias=False)
+        self.linear = nn.Linear(out_channels, final_out, bias=False)
         self.tahn_activate = tanh_activate
 
+    def forward(self, x):
+        x = self.conv_layer(x)
+        x = self.bn(x)
+        x = functional.leaky_relu(x)
+        x = self.linear(x)
+        if self.tahn_activate:
+            return functional.tanh(x)
+        else:
+            return x
 
-class Residual_CNN(nn.Module):
-    def __init__(self):
-        super(Residual_CNN, self).__init__()
+
+class ValuePolicyModel(nn.Module):
+    def __init__(self, in_channels, action_size):
+        super(ValuePolicyModel, self).__init__()
+
+        self.res_layers = ResNet50Extractor(in_channels)
+        self.value_head = LinearHead(2048, 1, 1, True)
+        self.policy_head = LinearHead(2048, 2, action_size, False)
+
+    def forward(self, x):
+        res_features = self.res_layers(x)
+        return self.value_head(res_features), self.policy_head(res_features)
