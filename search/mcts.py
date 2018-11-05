@@ -17,7 +17,7 @@ class Node():
         return len(self.edges) <= 0
 
 
-class Edge():
+class Edge:
     def __init__(self, in_node, out_node, prior, action):
         self.id = in_node.state.id + '|' + out_node.state.id
         self.inNode = in_node
@@ -26,7 +26,8 @@ class Edge():
         self.action = action
 
         # n is the number of times visited
-
+        # w is the value from the model
+        # q is w/n
         # p is the prior from the policy network over probability of making each move
 
         self.stats = {
@@ -49,31 +50,31 @@ class MCTS():
 
     def move_to_leaf(self):
         breadcrumbs = []
-        currentNode = self.root
+        current_node = self.root
 
         done = 0
         value = 0
 
-        while not currentNode.is_leaf():
+        while not current_node.is_leaf():
 
-            maxQU = -99999
+            max_qu = -99999
 
             # on root node introduce noise to the priors with a weight of epsilon
-            if currentNode == self.root:
+            if current_node == self.root:
                 epsilon = EPSILON
-                nu = np.random.dirichlet([ALPHA] * len(currentNode.edges))
+                nu = np.random.dirichlet([ALPHA] * len(current_node.edges))
             else:
                 epsilon = 0
-                nu = [0] * len(currentNode.edges)
+                nu = [0] * len(current_node.edges)
 
             # sum up the total times all the nodes on the edges have been visited
             # will have edges equal to the number of allowed actions
             Nb = 0
-            for action, edge in currentNode.edges:
+            for action, edge in current_node.edges:
                 Nb = Nb + edge.stats['N']
 
             # iterate over all possible actions
-            for idx, (action, edge) in enumerate(currentNode.edges):
+            for idx, (action, edge) in enumerate(current_node.edges):
 
                 # the exploitation term is the probability of this action from the model
                 # if it is the root node, noise is added
@@ -89,9 +90,47 @@ class MCTS():
                 Q = edge.stats['Q']
 
                 # take the move that maximizes Q+U
-                if Q+U > maxQU:
-                    maxQU = Q+U
+                if Q+U > max_qu:
+                    max_qu = Q+U
                     simulation_action = action
                     simulation_edge = edge
+
+            new_state, value, done = current_node.state.takeAction(simulation_action)
+            # update current node to be the node selected which maximizes Q+U
+            current_node = simulationEdge.outNode
+            # track the path
+            breadcrumbs.append(simulation_edge)
+
+        # return the leaf node found, the value for the person about to play
+        # (0 if game still not won, or -1 if they lost)
+        # whether the game is done
+        # and path to the leaf
+        return current_node, value, done, breadcrumbs
+
+    @staticmethod
+    def back_fill(leaf, value, breadcrumbs):
+        current_player = leaf.state.playerTurn
+
+        # starts from the top
+        for edge in breadcrumbs:
+            player_turn = edge.playerTurn
+            if player_turn == current_player:
+                direction = 1
+            else:
+                direction = -1
+
+            # increment N since visited
+            edge.stats['N'] = edge.stats['N'] + 1
+            # add (or subtract if different player) value which is predicted by model
+            edge.stats['W'] = edge.stats['W'] + value * direction
+            # recalculate Q
+            edge.stats['Q'] = edge.stats['W'] / edge.stats['N']
+
+    def add_node(self, node):
+        self.tree[node.id] = node
+
+
+
+
 
 

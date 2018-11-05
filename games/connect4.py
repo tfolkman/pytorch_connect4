@@ -188,27 +188,24 @@ class GameState():
                 return 1
         return 0
 
-
     def _getValue(self):
         # This is the value of the state for the current player
         # i.e. if the previous player played a winning move, you lose
+        # the first two values are for the current player; the last for the other player
         for x,y,z,a in self.winners:
             if (self.board[x] + self.board[y] + self.board[z] + self.board[a] == 4 * -self.playerTurn):
                 return (-1, -1, 1)
         return (0, 0, 0)
 
-
     def _getScore(self):
         tmp = self.value
         return (tmp[1], tmp[2])
-
-
-
 
     def takeAction(self, action):
         newBoard = np.array(self.board)
         newBoard[action]=self.playerTurn
 
+        # change the player turn b/c you just took a turn with the other player
         newState = GameState(newBoard, -self.playerTurn)
 
         value = 0
@@ -218,10 +215,7 @@ class GameState():
             value = newState.value[0]
             done = 1
 
-        return (newState, value, done)
-
-
-
+        return newState, value, done
 
     def render(self, logger):
         for r in range(6):
